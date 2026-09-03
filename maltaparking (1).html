@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Malta Parking — Sliema, Gżira, Balluta &amp; St Julian's</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --limestone: #F6F2E7;
+    --limestone-deep: #EBE3D0;
+    --sea: #0E6E8C;
+    --sea-dark: #0A5470;
+    --ink: #16262E;
+    --ink-soft: #4B5A61;
+    --free: #3E8F63;
+    --free-bg: #E7F3EB;
+    --paid: #C17A1F;
+    --paid-bg: #FBEEDD;
+    --line: #DCD4BF;
+    --white: #FFFFFF;
+    --radius-card: 18px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    font-family: 'Inter', -apple-system, sans-serif;
+    color: var(--ink);
+    background: var(--limestone);
+  }
+
+  h1, h2, .display {
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  #app {
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---------- Header ---------- */
+  header {
+    background: var(--limestone);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 16px 12px;
+    z-index: 20;
+    flex-shrink: 0;
+  }
+
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .brand-mark {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: var(--sea);
+    color: var(--white);
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .brand h1 {
+    font-size: 19px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .brand span.sub {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    font-family: 'Inter', sans-serif;
+    font-weight: 400;
+  }
+
+  .search-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 9px 12px;
+    margin-bottom: 10px;
+    color: var(--ink-soft);
+  }
+  .search-box input {
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: var(--ink);
+    flex: 1;
+    min-width: 0;
+  }
+  .search-box input::placeholder { color: var(--ink-soft); }
+  .search-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 2px;
+    margin: 0;
+    color: var(--sea);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .search-btn:active { color: var(--sea-dark); }
+
+  .chip-row {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-bottom: 1px;
+  }
+  .chip-row::-webkit-scrollbar { display: none; }
+  #type-chip-row { margin-top: 8px; }
+  #hours-chip-row { margin-top: 8px; }
+
+  .chip {
+    flex-shrink: 0;
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--white);
+    color: var(--ink-soft);
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .chip:active { transform: scale(0.97); }
+
+  .chip.active {
+    background: var(--sea);
+    border-color: var(--sea);
+    color: var(--white);
+  }
+
+  /* ---------- Map ---------- */
+  #map-wrap {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+  }
+
+  #map { height: 100%; width: 100%; background: #DDE7E9; }
+
+  .leaflet-control-attribution {
+    font-size: 10px !important;
+  }
+
+  /* custom marker */
+  .parking-pin {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    box-shadow: 0 2px 5px rgba(20,30,35,0.35);
+    border: 2px solid var(--white);
+  }
+  .parking-pin span {
+    transform: rotate(45deg);
+    color: var(--white);
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+  }
+  .pin-free { background: var(--free); }
+  .pin-paid { background: var(--paid); }
+  .pin-selected {
+    box-shadow: 0 0 0 4px rgba(14,110,140,0.28), 0 3px 6px rgba(20,30,35,0.4);
+  }
+
+  /* Marker popup */
+  .pin-popup { font-family: 'Inter', sans-serif; min-width: 200px; }
+  .pin-popup-name {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14.5px;
+    font-weight: 600;
+    margin: 0 0 3px;
+    color: var(--ink);
+  }
+  .pin-popup-address {
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin: 0 0 10px;
+    line-height: 1.35;
+  }
+  .pin-popup-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 9px 10px;
+    padding-top: 9px;
+    border-top: 1px solid var(--line);
+  }
+  .pin-popup-item-full { grid-column: 1 / -1; }
+  .pin-popup-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--ink-soft);
+    margin: 0 0 2px;
+  }
+  .pin-popup-value { font-size: 13px; font-weight: 600; color: var(--ink); margin: 0; }
+  .pin-popup .badge { font-size: 11px; padding: 3px 9px; }
+  .pin-popup-directions,
+  .leaflet-popup-content a.pin-popup-directions {
+    display: block;
+    text-align: center;
+    margin-top: 12px;
+    background: var(--sea);
+    color: var(--white) !important;
+    text-decoration: none;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 8px 10px;
+    border-radius: 9px;
+  }
+  .pin-popup-directions:active { background: var(--sea-dark); }
+
+  /* Legend */
+  .legend {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(4px);
+    border-radius: 12px;
+    padding: 9px 12px;
+    font-size: 12px;
+    color: var(--ink-soft);
+    box-shadow: 0 2px 10px rgba(20,30,35,0.12);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .legend-row { display: flex; align-items: center; gap: 7px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  #locate-btn {
+    position: absolute;
+    bottom: 92px;
+    right: 12px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--white);
+    border: none;
+    color: var(--sea);
+    box-shadow: 0 2px 10px rgba(20,30,35,0.22);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+    padding: 0;
+  }
+  #locate-btn:active { background: var(--limestone-deep); }
+  #locate-btn.locating svg circle { animation: locate-pulse 1s ease-in-out infinite; }
+  @keyframes locate-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+  .user-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--sea);
+    border: 3px solid var(--white);
+    box-shadow: 0 0 0 2px rgba(14,110,140,0.35), 0 2px 6px rgba(20,30,35,0.3);
+  }
+
+  /* ---------- Bottom sheet ---------- */
+  #backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 24, 28, 0.32);
+    z-index: 29;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  #backdrop.show { opacity: 1; pointer-events: auto; }
+
+  #sheet {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: var(--white);
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -6px 24px rgba(20,30,35,0.22);
+    z-index: 30;
+    padding: 10px 20px calc(20px + env(safe-area-inset-bottom));
+    transform: translateY(105%);
+    transition: transform 0.28s cubic-bezier(.32,.72,0,1);
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  #sheet.show { transform: translateY(0); }
+
+  .sheet-handle {
+    width: 36px;
+    height: 4px;
+    background: var(--line);
+    border-radius: 4px;
+    margin: 4px auto 14px;
+  }
+
+  .sheet-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .sheet-name {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 4px;
+    line-height: 1.25;
+  }
+
+  .sheet-location {
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+
+  .badge {
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 11px;
+    border-radius: 999px;
+    font-family: 'Inter', sans-serif;
+  }
+  .badge.free { color: var(--free); background: var(--free-bg); }
+  .badge.paid { color: var(--paid); background: var(--paid-bg); }
+
+  .sheet-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 18px 0 20px;
+  }
+
+  .detail-item { }
+  .detail-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+    margin: 0 0 3px;
+  }
+  .detail-value {
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--ink);
+    margin: 0;
+  }
+
+  .navigate-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    background: var(--sea);
+    color: var(--white);
+    border: none;
+    padding: 14px;
+    border-radius: 13px;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    text-decoration: none;
+  }
+  .navigate-btn:active { background: var(--sea-dark); }
+
+  .close-btn {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--limestone-deep);
+    border: none;
+    color: var(--ink-soft);
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  @media (min-width: 480px) {
+    #sheet { border-radius: 20px; bottom: 20px; left: 50%; transform: translate(-50%, 130%); }
+    #sheet.show { transform: translate(-50%, 0); }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <div class="brand">
+      <div class="brand-mark">P</div>
+      <div>
+        <h1>Malta Parking</h1><br>
+        <span class="sub">Sliema · Gżira · Balluta · St Julian's</span>
+      </div>
+    </div>
+    <form id="search-form" class="search-box" role="search">
+      <input id="search-input" type="text" placeholder="Search parking name or area…" autocomplete="off">
+      <button type="submit" class="search-btn" aria-label="Search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
+          <path d="M20 20L16.5 16.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </form>
+    <div class="chip-row" id="chip-row">
+      <button class="chip active" data-area="All">All areas</button>
+      <button class="chip" data-area="Sliema">Sliema</button>
+      <button class="chip" data-area="Gżira">Gżira</button>
+      <button class="chip" data-area="Balluta">Balluta</button>
+      <button class="chip" data-area="St Julian's">St Julian's</button>
+    </div>
+    <div class="chip-row" id="type-chip-row">
+      <button class="chip active" data-type="All">All</button>
+      <button class="chip" data-type="free">Free</button>
+      <button class="chip" data-type="paid">Paid</button>
+    </div>
+    <div class="chip-row" id="hours-chip-row">
+      <button class="chip active" data-hours="All">Any hours</button>
+      <button class="chip" data-hours="open">Open now</button>
+      <button class="chip" data-hours="closed">Closed now</button>
+    </div>
+  </header>
+
+  <div id="map-wrap">
+    <div id="map"></div>
+    <div class="legend">
+      <div class="legend-row"><span class="legend-dot" style="background:var(--free);"></span>Free parking</div>
+      <div class="legend-row"><span class="legend-dot" style="background:var(--paid);"></span>Paid parking</div>
+    </div>
+    <button id="locate-btn" title="My Location" aria-label="My Location">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="3" fill="currentColor"/>
+        <path d="M12 2V5M12 19V22M2 12H5M19 12H22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<div id="backdrop"></div>
+
+<div id="sheet">
+  <button class="close-btn" id="close-btn">&#10005;</button>
+  <div class="sheet-handle"></div>
+  <div class="sheet-top">
+    <div>
+      <p class="sheet-name" id="s-name"></p>
+      <p class="sheet-location" id="s-location"></p>
+    </div>
+    <span class="badge" id="s-badge"></span>
+  </div>
+  <div class="sheet-details">
+    <div class="detail-item">
+      <p class="detail-label">Spaces</p>
+      <p class="detail-value" id="s-spaces"></p>
+    </div>
+    <div class="detail-item">
+      <p class="detail-label">Opening hours</p>
+      <p class="detail-value" id="s-hours"></p>
+    </div>
+  </div>
+  <a class="navigate-btn" id="s-navigate" target="_blank" rel="noopener">
+    <span>Navigate</span>
+  </a>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+  // ---------- Sample parking data ----------
+  const parkingSpots = [
+    { id: 1, name: "Tigné Point Car Park", area: "Sliema", address: "Tigné Point, Sliema", latitude: 35.9187, longitude: 14.5010, freeOrPaid: "paid", spaces: 550, openingHours: "Open 24 hours", price: "€1.50/hour", source: null, lastVerified: null },
+    { id: 2, name: "The Point Mall Parking", area: "Sliema", address: "Tigné Seafront, Sliema", latitude: 35.9188, longitude: 14.5023, freeOrPaid: "paid", spaces: 300, openingHours: "07:00 – 23:00", price: "€2.00/hour", source: null, lastVerified: null },
+    { id: 3, name: "Sliema Ferries Parking", area: "Sliema", address: "Ferry Terminus, Sliema", latitude: 35.9106, longitude: 14.5041, freeOrPaid: "free", spaces: 40, openingHours: "Open 24 hours", price: null, source: null, lastVerified: null },
+    { id: 4, name: "Qui-Si-Sana Seafront", area: "Sliema", address: "Qui-Si-Sana, Sliema", latitude: 35.9130, longitude: 14.5000, freeOrPaid: "free", spaces: 25, openingHours: "Open 24 hours", price: null, source: null, lastVerified: null },
+    { id: 5, name: "Gżira Waterfront Parking", area: "Gżira", address: "Ġorġ Borg Olivier Street, Gżira", latitude: 35.9047, longitude: 14.4884, freeOrPaid: "free", spaces: 60, openingHours: "Open 24 hours", price: null, source: null, lastVerified: null },
+    { id: 6, name: "Manoel Island Approach", area: "Gżira", address: "Ta' Xbiex Seafront, Gżira", latitude: 35.9013, longitude: 14.4930, freeOrPaid: "free", spaces: 35, openingHours: "06:00 – 22:00", price: null, source: null, lastVerified: null },
+    { id: 7, name: "Balluta Bay Parking", area: "Balluta", address: "Balluta Bay, St Julian's", latitude: 35.9155, longitude: 14.4906, freeOrPaid: "paid", spaces: 45, openingHours: "07:00 – 00:00", price: "€1.20/hour", source: null, lastVerified: null },
+    { id: 8, name: "Balluta Church Square", area: "Balluta", address: "Our Lady of Mount Carmel Square, Balluta", latitude: 35.9150, longitude: 14.4917, freeOrPaid: "free", spaces: 15, openingHours: "08:00 – 20:00", price: null, source: null, lastVerified: null },
+    { id: 9, name: "Spinola Bay Parking", area: "St Julian's", address: "Spinola Bay, St Julian's", latitude: 35.9184, longitude: 14.4885, freeOrPaid: "paid", spaces: 80, openingHours: "Open 24 hours", price: "€2.50/hour", source: null, lastVerified: null },
+    { id: 10, name: "Portomaso Car Park", area: "St Julian's", address: "Portomaso, St Julian's", latitude: 35.9210, longitude: 14.4877, freeOrPaid: "paid", spaces: 400, openingHours: "Open 24 hours", price: "€3.00/hour", source: null, lastVerified: null },
+    { id: 11, name: "Paceville Car Park", area: "St Julian's", address: "Ball Street, Paceville", latitude: 35.9218, longitude: 14.4884, freeOrPaid: "paid", spaces: 150, openingHours: "Open 24 hours", price: "€2.00/hour", source: null, lastVerified: null },
+    { id: 12, name: "Independence Gardens", area: "St Julian's", address: "Independence Gardens, St Julian's", latitude: 35.9166, longitude: 14.4895, freeOrPaid: "free", spaces: 20, openingHours: "Open 24 hours", price: null, source: null, lastVerified: null }
+  ];
+
+  // ---------- Map setup ----------
+  const map = L.map('map', { zoomControl: false, attributionControl: true }).setView([35.9140, 14.4940], 15);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+  function makeIcon(type, selected) {
+    return L.divIcon({
+      className: '',
+      html: `<div class="parking-pin pin-${type}${selected ? ' pin-selected' : ''}"><span>P</span></div>`,
+      iconSize: [30, 30],
+      iconAnchor: [15, 28],
+      popupAnchor: [0, -26]
+    });
+  }
+
+  const markers = {};
+  let activeMarkerId = null;
+
+  let userLocation = null;
+
+  function distanceMeters(lat1, lng1, lat2, lng2) {
+    const R = 6371000;
+    const toRad = deg => deg * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  function formatDistance(m) {
+    return m < 1000 ? Math.round(m) + ' m away' : (m / 1000).toFixed(1) + ' km away';
+  }
+
+  function popupHTML(spot) {
+    const typeLabel = spot.freeOrPaid === 'free' ? 'Free' : 'Paid';
+    const priceText = spot.freeOrPaid === 'free' ? 'Free' : (spot.price || '—');
+    const dirUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(spot.address + ', Malta')}`;
+    const distanceRow = userLocation
+      ? `<div class="pin-popup-item pin-popup-item-full">
+           <p class="pin-popup-label">Distance</p>
+           <p class="pin-popup-value">${formatDistance(distanceMeters(userLocation[0], userLocation[1], spot.latitude, spot.longitude))}</p>
+         </div>`
+      : '';
+    return `
+      <div class="pin-popup">
+        <p class="pin-popup-name">${spot.name}</p>
+        <p class="pin-popup-address">${spot.address}</p>
+        <div class="pin-popup-grid">
+          <div class="pin-popup-item">
+            <p class="pin-popup-label">Type</p>
+            <span class="badge ${spot.freeOrPaid}">${typeLabel}</span>
+          </div>
+          <div class="pin-popup-item">
+            <p class="pin-popup-label">Price</p>
+            <p class="pin-popup-value">${priceText}</p>
+          </div>
+          <div class="pin-popup-item">
+            <p class="pin-popup-label">Spaces</p>
+            <p class="pin-popup-value">${spot.spaces}</p>
+          </div>
+          <div class="pin-popup-item">
+            <p class="pin-popup-label">Hours</p>
+            <p class="pin-popup-value">${spot.openingHours}</p>
+          </div>
+          ${distanceRow}
+        </div>
+        <a class="pin-popup-directions" href="${dirUrl}" target="_blank" rel="noopener">Get Directions</a>
+      </div>`;
+  }
+
+  parkingSpots.forEach(spot => {
+    const marker = L.marker([spot.latitude, spot.longitude], { icon: makeIcon(spot.freeOrPaid, false) })
+      .addTo(map)
+      .bindPopup(() => popupHTML(spot))
+      .on('click', () => openSheet(spot));
+    markers[spot.id] = marker;
+  });
+
+  // ---------- Bottom sheet logic ----------
+  const sheet = document.getElementById('sheet');
+  const backdrop = document.getElementById('backdrop');
+
+  function openSheet(spot) {
+    if (activeMarkerId !== null && markers[activeMarkerId]) {
+      const prev = parkingSpots.find(s => s.id === activeMarkerId);
+      markers[activeMarkerId].setIcon(makeIcon(prev.freeOrPaid, false));
+    }
+    activeMarkerId = spot.id;
+    markers[spot.id].setIcon(makeIcon(spot.freeOrPaid, true));
+
+    document.getElementById('s-name').textContent = spot.name;
+    document.getElementById('s-location').textContent = spot.address;
+    const badge = document.getElementById('s-badge');
+    badge.textContent = spot.freeOrPaid === 'free' ? 'Free' : 'Paid';
+    badge.className = 'badge ' + spot.freeOrPaid;
+    document.getElementById('s-spaces').textContent = spot.spaces + ' spaces';
+    document.getElementById('s-hours').textContent = spot.openingHours;
+    document.getElementById('s-navigate').href = `https://www.google.com/maps/dir/?api=1&destination=${spot.latitude},${spot.longitude}`;
+
+    sheet.classList.add('show');
+    backdrop.classList.add('show');
+
+    map.panTo([spot.latitude, spot.longitude], { animate: true });
+  }
+
+  function closeSheet() {
+    sheet.classList.remove('show');
+    backdrop.classList.remove('show');
+    if (activeMarkerId !== null && markers[activeMarkerId]) {
+      const prev = parkingSpots.find(s => s.id === activeMarkerId);
+      markers[activeMarkerId].setIcon(makeIcon(prev.freeOrPaid, false));
+    }
+    activeMarkerId = null;
+  }
+
+  document.getElementById('close-btn').addEventListener('click', closeSheet);
+  backdrop.addEventListener('click', closeSheet);
+
+  // ---------- My Location ----------
+  const locateBtn = document.getElementById('locate-btn');
+  let userMarker = null;
+
+  locateBtn.addEventListener('click', () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by this browser.');
+      return;
+    }
+    locateBtn.classList.add('locating');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        locateBtn.classList.remove('locating');
+        const latlng = [pos.coords.latitude, pos.coords.longitude];
+        userLocation = latlng;
+
+        if (userMarker) {
+          userMarker.setLatLng(latlng);
+        } else {
+          userMarker = L.marker(latlng, {
+            icon: L.divIcon({ className: '', html: '<div class="user-dot"></div>', iconSize: [16, 16], iconAnchor: [8, 8] }),
+            zIndexOffset: 1000
+          }).addTo(map).bindPopup('You are here');
+        }
+
+        map.setView(latlng, 16, { animate: true });
+      },
+      (err) => {
+        locateBtn.classList.remove('locating');
+        alert('Unable to retrieve your location. Please check location permissions.');
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  });
+
+  function timeToMinutes(str) {
+    const [h, m] = str.trim().split(':').map(Number);
+    return h * 60 + m;
+  }
+
+  function isOpenNow(hoursStr) {
+    if (/24 hours/i.test(hoursStr)) return true;
+    const parts = hoursStr.split('–');
+    if (parts.length !== 2) return true;
+    const start = timeToMinutes(parts[0]);
+    let end = timeToMinutes(parts[1]);
+    if (end <= start) end += 24 * 60;
+    const now = new Date();
+    let current = now.getHours() * 60 + now.getMinutes();
+    if (current < start) current += 24 * 60;
+    return current >= start && current <= end;
+  }
+
+  // ---------- Search ----------
+  const searchForm = document.getElementById('search-form');
+  const searchInput = document.getElementById('search-input');
+
+  searchForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const query = searchInput.value.trim().toLowerCase();
+    if (!query) return;
+
+    const match = parkingSpots.find(spot =>
+      spot.name.toLowerCase().includes(query) || spot.area.toLowerCase().includes(query)
+    );
+
+    if (match) {
+      const m = markers[match.id];
+      if (!map.hasLayer(m)) m.addTo(map);
+      map.setView([match.latitude, match.longitude], 17, { animate: true });
+      m.openPopup();
+    } else {
+      alert('No parking found matching "' + searchInput.value.trim() + '".');
+    }
+  });
+
+  // ---------- Area & type filters ----------
+  const chipRow = document.getElementById('chip-row');
+  const typeChipRow = document.getElementById('type-chip-row');
+  const hoursChipRow = document.getElementById('hours-chip-row');
+  let activeArea = 'All';
+  let activeType = 'All';
+  let activeHours = 'All';
+
+  function applyFilters() {
+    let visibleSpots = [];
+    parkingSpots.forEach(spot => {
+      const areaMatch = activeArea === 'All' || spot.area === activeArea;
+      const typeMatch = activeType === 'All' || spot.freeOrPaid === activeType;
+      const openNow = isOpenNow(spot.openingHours);
+      const hoursMatch = activeHours === 'All' || (activeHours === 'open' && openNow) || (activeHours === 'closed' && !openNow);
+      const visible = areaMatch && typeMatch && hoursMatch;
+      const m = markers[spot.id];
+      if (visible) {
+        if (!map.hasLayer(m)) m.addTo(map);
+        visibleSpots.push(spot);
+      } else {
+        if (map.hasLayer(m)) map.removeLayer(m);
+      }
+    });
+
+    closeSheet();
+
+    if (visibleSpots.length) {
+      const bounds = L.latLngBounds(visibleSpots.map(s => [s.latitude, s.longitude]));
+      map.fitBounds(bounds, { padding: [60, 60], maxZoom: 17 });
+    }
+  }
+
+  chipRow.addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    chipRow.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    activeArea = chip.dataset.area;
+    applyFilters();
+  });
+
+  typeChipRow.addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    typeChipRow.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    activeType = chip.dataset.type;
+    applyFilters();
+  });
+
+  hoursChipRow.addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    hoursChipRow.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    activeHours = chip.dataset.hours;
+    applyFilters();
+  });
+</script>
+
+</body>
+</html>
